@@ -19,12 +19,12 @@ namespace FileSync
             this.sourcePath = config.SourcePath;
             this.destPath = config.DestPath; 
         }
-        public void Process()
+        public async Task ProcessAsync(CancellationToken stoppingToken)
         {
             List<FileModel> files = new List<FileModel>();
             foreach(string file in Directory.GetFiles(this.sourcePath))
             {
-                if (File.Exists(file))
+                if (File.Exists(file) && !stoppingToken.IsCancellationRequested)
                 {
                     FileInfo fileInfo = new FileInfo(file);
                     FileModel model = new FileModel();
@@ -32,13 +32,49 @@ namespace FileSync
                     model.LastDate = fileInfo.LastWriteTime;
                     model.Size = fileInfo.Length;
                     files.Add(model);
+                    await Task.Delay(200);
                 }
             }
+           await CheckFilesAsync(files, stoppingToken);
+           await Task.Delay(1000);
         }
 
-        private void CheckFiles(List<FileModel> files)
+        private async Task CheckFilesAsync(List<FileModel> sourceFiles, CancellationToken stoppingToken)
         {
+            try
+            {
+                DeleteDestFiles();
+                foreach (FileModel file in sourceFiles)
+                {
+                    Path.Combine(this.destPath, file.Name);
+                    string destFile = Path.Combine(this.destPath, file.Name);
+                    string sourceFile = Path.Combine(this.sourcePath, file.Name);
+                    if (File.Exists(sourceFile))
+                    {
+                        File.Copy(sourceFile, destFile, true);
+                    }
+                    await Task.Delay(200);
+                }
+
+            }
+            catch(Exception ex) 
+            {
+                logger.LogError(ex, ex.Message);
+            }
             
+        }
+
+            private void DeleteDestFiles()
+        {
+            List<FileModel> files = new List<FileModel>();
+            foreach (string file in Directory.GetFiles(this.destPath))
+            {
+                if (File.Exists(file))
+                {
+                   File.Delete(file);
+                }
+            }
+           
         }
 
     }

@@ -2,6 +2,6 @@
 {
     public interface IFileCheck
     {
-        void Process();
+        Task ProcessAsync(CancellationToken stoppingToken);
     }
 }
